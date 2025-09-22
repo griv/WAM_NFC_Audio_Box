@@ -216,8 +216,6 @@ void playNoMatch() {
 void setup(void) {
   
   Serial.begin(115200);
-  while (!Serial) delay(10); // for Leonardo/Micro/Zero
-
   Serial.println("WAM NFC Audio Box");
   
   // Load saved volume from EEPROM
