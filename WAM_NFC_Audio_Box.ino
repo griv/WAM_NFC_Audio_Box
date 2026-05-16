@@ -46,6 +46,9 @@ const float minVolume = 0.1;
 const float maxVolume = 1.0;
 const int EEPROM_VOLUME_ADDRESS = 0; // EEPROM address to store volume
 
+// Alternating audio file control
+int currentFileNumber = 1; // Start with file 1, alternates between 1 and 2
+
 // Save volume to EEPROM
 void saveVolumeToEEPROM() {
   int volumeInt = (int)(currentVolume * 100); // Convert to 0-100 integer
@@ -164,22 +167,48 @@ bool parseNDEFTextRecord(uint8_t* data, int dataLength, char* textOutput, int ma
 }
 
 // Function to search for WAV file on SD card and play it
+// Alternates between file1.WAV and file2.WAV for each trigger word
+// Enforces 8.3 filename convention: max 7 chars + 1 number + .WAV
 bool searchAndPlayWAV(char* textBuffer) {
-  // Convert text buffer to uppercase for consistent matching
-  char filename[32];
+  // Convert text buffer to uppercase and enforce 7 character max for 8.3 naming
+  char baseFilename[8]; // 7 chars + null terminator
   int len = strlen(textBuffer);
-  for (int i = 0; i < len && i < 27; i++) { // Leave room for ".WAV" + null terminator
-    filename[i] = toupper(textBuffer[i]);
+  if (len > 7) {
+    len = 7; // Truncate to 7 characters for 8.3 convention (7 chars + number = 8)
   }
-  filename[len] = '\0';
-  strcat(filename, ".WAV");
   
-  // Serial output removed for speed
+  for (int i = 0; i < len; i++) {
+    baseFilename[i] = toupper(textBuffer[i]);
+  }
+  baseFilename[len] = '\0';
   
-  // Check if file exists on SD card
+  // Try to find alternating files (TRIGGERW1.WAV or TRIGGERW2.WAV for 7-char words)
+  char filename[13]; // 8.3 format: 8 chars + '.' + 3 chars + null = 13
+  bool fileFound = false;
+  int fileNumberToPlay = currentFileNumber;
+  
+  // First, try the current file number (1 or 2)
+  sprintf(filename, "%s%d.WAV", baseFilename, fileNumberToPlay);
   if (SD.exists(filename)) {
-    // File found - play without serial output for speed
-    
+    fileFound = true;
+  } else {
+    // If current file number doesn't exist, try the other one
+    fileNumberToPlay = (fileNumberToPlay == 1) ? 2 : 1;
+    sprintf(filename, "%s%d.WAV", baseFilename, fileNumberToPlay);
+    if (SD.exists(filename)) {
+      fileFound = true;
+    } else {
+      // Neither file1 nor file2 exists, try without number (backward compatibility)
+      sprintf(filename, "%s.WAV", baseFilename);
+      if (SD.exists(filename)) {
+        fileFound = true;
+        fileNumberToPlay = 0; // Don't alternate for files without numbers
+      }
+    }
+  }
+  
+  if (fileFound) {
+    // File found - play it
     playSdWav1.play(filename);
     
     // Wait for playback to start
@@ -190,7 +219,11 @@ bool searchAndPlayWAV(char* textBuffer) {
       delay(100);
     }
     
-    // Playback finished - no serial output for speed
+    // Toggle file number for next time (only if we used numbered files)
+    if (fileNumberToPlay != 0) {
+      currentFileNumber = (currentFileNumber == 1) ? 2 : 1;
+    }
+    
     return true;
   } else {
     // File not found - no serial output for speed
