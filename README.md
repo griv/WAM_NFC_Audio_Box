@@ -82,6 +82,36 @@ The device supports persistent volume control via special NFC tags:
 
 Volume settings are automatically saved to EEPROM and restored on power-up.
 
+### EQ / Vocal Boost
+
+The speaker is housed in a small enclosed wooden box which tends to emphasise low-mid frequencies and muffle vocal clarity. A three-stage EQ can be toggled on or off via NFC tags:
+
+| NFC Tag Text | Action |
+|---|---|
+| `EQON` | Enable vocal-boost EQ (saved to EEPROM) |
+| `EQOFF` | Disable EQ – flat/unprocessed output (saved to EEPROM) |
+| `ABTEST` | A/B test: plays the last-triggered audio file **flat** then immediately **EQ-boosted** so you can compare the difference |
+
+The EQ state persists across power cycles (stored in EEPROM address 1).
+
+#### Vocal-Boost EQ Curve
+
+| Stage | Type | Frequency | Gain | Notes |
+|---|---|---|---|---|
+| 0 | Low shelf cut | 300 Hz | −3 dB | Reduces box / low-mid resonance |
+| 1 | Peaking boost | 2 000 Hz | +4 dB | Vocal presence / intelligibility |
+| 2 | High shelf lift | 6 000 Hz | +2 dB | Air and upper-harmonic clarity |
+
+These values are starting points. Fine-tune the constants in [`applyEQSettings()`](WAM_NFC_Audio_Box.ino) to suit the specific enclosure and speaker response.
+
+#### A/B Testing Workflow
+
+1. Tap an exhibit NFC tag to play a clip normally (current EQ state applies).
+2. Tap an `ABTEST` tag — the device replays the same clip **without EQ** first, then immediately **with vocal-boost EQ**, so you can judge the improvement in-place.
+3. Use `EQON` / `EQOFF` tags to lock in your preference.
+
+You can also place an `ABTEST.WAV` file on the SD card to use as a dedicated reference clip if no NFC content tag has been played yet.
+
 ### Audio Feedback Files
 
 Place these optional WAV files on the SD card for enhanced user feedback:
@@ -94,6 +124,7 @@ Place these optional WAV files on the SD card for enhanced user feedback:
 | `VOLUMEDN.WAV` | Confirmation sound for volume decrease |
 | `VOLUMEMX.WAV` | Played when already at maximum volume |
 | `VOLUMEMN.WAV` | Played when already at minimum volume |
+| `ABTEST.WAV` | Optional reference clip for A/B EQ comparison |
 
 ## File Structure
 
@@ -117,6 +148,13 @@ SD Card Root/
 - **Volume Range**: 10% - 100%
 - **Volume Steps**: 10% increments
 - **Hardware Codec Level**: 80%
+
+### EQ Settings
+- **Default State**: Off (flat) – loaded from EEPROM on boot
+- **EEPROM Address**: 1 (volume uses address 0)
+- **Audio memory blocks**: increased to 12 to accommodate biquad filter pipeline
+
+To adjust the EQ curve, edit the constants inside [`applyEQSettings()`](WAM_NFC_Audio_Box.ino) in the sketch.
 
 ### Performance Optimizations
 - Serial output minimized for faster NFC reading
