@@ -204,8 +204,10 @@ Uncomment debug lines in the code to enable serial output for troubleshooting.
 
 ## Author
 
-Steve Berrick <steve@berrick.net>  
+Steve Berrick <steve@berrick.net>
 September 2025
+
+*Code and documentation written with AI assistance ([Roo](https://roo.ai) / Claude by Anthropic).*
 
 ## License
 
