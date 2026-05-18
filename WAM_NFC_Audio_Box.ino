@@ -140,21 +140,31 @@ void applyEQSettings(bool enabled) {
     eqLeft.setLowShelf( 0, 300,  -3.0, 0.707);
     eqRight.setLowShelf(0, 300,  -3.0, 0.707);
 
-    // Stage 1: Peaking EQ boost – vocal presence / intelligibility
-    //   Frequency: 2000 Hz   Bandwidth (octaves): 1.4   Gain: +4 dB
-    eqLeft.setPeakingEQ( 1, 2000, 1.4, 4.0);
-    eqRight.setPeakingEQ(1, 2000, 1.4, 4.0);
+    // Stage 1: Peaking (bell) EQ boost – vocal presence / intelligibility
+    //   Frequency: 2000 Hz   Q: 1.4   Gain: +4 dB
+    //   Coefficients computed with Audio EQ Cookbook (Bristow-Johnson):
+    //     A=10^(4/40)=1.2589, w0=2π*2000/44100, alpha=sin(w0)/(2*Q)
+    //     b0/a0, b1/a0, b2/a0, a1/a0, a2/a0  (a0-normalised)
+    static const double peakBoost[5] = {
+       1.04335, -1.77700,  0.80863, -1.77700,  0.85199
+    };
+    eqLeft.setCoefficients( 1, peakBoost);
+    eqRight.setCoefficients(1, peakBoost);
 
     // Stage 2: High shelf boost – air and clarity above the box
     //   Frequency: 6000 Hz   Gain: +2 dB   Slope: 0.707
     eqLeft.setHighShelf( 2, 6000, 2.0, 0.707);
     eqRight.setHighShelf(2, 6000, 2.0, 0.707);
   } else {
-    // Unity gain (flat) – 0 dB shelf/peak = pass-through
+    // Unity gain (flat / pass-through)
     eqLeft.setLowShelf( 0, 300,  0.0, 0.707);
     eqRight.setLowShelf(0, 300,  0.0, 0.707);
-    eqLeft.setPeakingEQ( 1, 2000, 1.4, 0.0);
-    eqRight.setPeakingEQ(1, 2000, 1.4, 0.0);
+
+    // Identity biquad: b0=1, b1=0, b2=0, a1=0, a2=0
+    static const double peakFlat[5] = { 1.0, 0.0, 0.0, 0.0, 0.0 };
+    eqLeft.setCoefficients( 1, peakFlat);
+    eqRight.setCoefficients(1, peakFlat);
+
     eqLeft.setHighShelf( 2, 6000, 0.0, 0.707);
     eqRight.setHighShelf(2, 6000, 0.0, 0.707);
   }
