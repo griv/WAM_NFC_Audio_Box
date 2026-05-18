@@ -135,38 +135,44 @@ bool eqEnabled = false; // Runtime state, loaded from EEPROM
 */
 void applyEQSettings(bool enabled) {
   if (enabled) {
-    // Stage 0: Low shelf cut – reduce box resonance in the low-mids
-    //   Frequency: 300 Hz   Gain: -3 dB   Slope: 0.707
-    eqLeft.setLowShelf( 0, 300,  -3.0, 0.707);
-    eqRight.setLowShelf(0, 300,  -3.0, 0.707);
+    Serial.println("EQ: applying VOCAL BOOST");
+
+    // Stage 0: Low shelf cut – tame boxy low-mid resonance
+    //   Frequency: 400 Hz   Gain: -6 dB   Slope: 0.707
+    eqLeft.setLowShelf( 0, 400, -6.0, 0.707);
+    eqRight.setLowShelf(0, 400, -6.0, 0.707);
 
     // Stage 1: Peaking (bell) EQ boost – vocal presence / intelligibility
-    //   Frequency: 2000 Hz   Q: 1.4   Gain: +4 dB
-    //   Coefficients computed with Audio EQ Cookbook (Bristow-Johnson):
-    //     A=10^(4/40)=1.2589, w0=2π*2000/44100, alpha=sin(w0)/(2*Q)
-    //     b0/a0, b1/a0, b2/a0, a1/a0, a2/a0  (a0-normalised)
+    //   Frequency: 2500 Hz   Q: 1.4   Gain: +6 dB
+    //   Coefficients pre-computed via Audio EQ Cookbook (Bristow-Johnson):
+    //     A=10^(6/40)=1.41254, w0=2π*2500/44100=0.35700
+    //     alpha=sin(w0)/(2*Q)=0.12504
+    //     normalised: b0 b1 b2 a1 a2  (all divided by a0)
     static const double peakBoost[5] = {
-       1.04335, -1.77700,  0.80863, -1.77700,  0.85199
+       1.08094, -1.72124, 0.75649, -1.72124, 0.83742
     };
     eqLeft.setCoefficients( 1, peakBoost);
     eqRight.setCoefficients(1, peakBoost);
 
-    // Stage 2: High shelf boost – air and clarity above the box
-    //   Frequency: 6000 Hz   Gain: +2 dB   Slope: 0.707
-    eqLeft.setHighShelf( 2, 6000, 2.0, 0.707);
-    eqRight.setHighShelf(2, 6000, 2.0, 0.707);
-  } else {
-    // Unity gain (flat / pass-through)
-    eqLeft.setLowShelf( 0, 300,  0.0, 0.707);
-    eqRight.setLowShelf(0, 300,  0.0, 0.707);
+    // Stage 2: High shelf boost – air and upper-harmonic clarity
+    //   Frequency: 5000 Hz   Gain: +4 dB   Slope: 0.707
+    eqLeft.setHighShelf( 2, 5000, 4.0, 0.707);
+    eqRight.setHighShelf(2, 5000, 4.0, 0.707);
 
-    // Identity biquad: b0=1, b1=0, b2=0, a1=0, a2=0
+  } else {
+    Serial.println("EQ: FLAT (bypass)");
+
+    // Unity gain (flat / pass-through)
+    eqLeft.setLowShelf( 0, 400,  0.0, 0.707);
+    eqRight.setLowShelf(0, 400,  0.0, 0.707);
+
+    // Identity biquad: H(z)=1
     static const double peakFlat[5] = { 1.0, 0.0, 0.0, 0.0, 0.0 };
     eqLeft.setCoefficients( 1, peakFlat);
     eqRight.setCoefficients(1, peakFlat);
 
-    eqLeft.setHighShelf( 2, 6000, 0.0, 0.707);
-    eqRight.setHighShelf(2, 6000, 0.0, 0.707);
+    eqLeft.setHighShelf( 2, 5000, 0.0, 0.707);
+    eqRight.setHighShelf(2, 5000, 0.0, 0.707);
   }
 }
 
