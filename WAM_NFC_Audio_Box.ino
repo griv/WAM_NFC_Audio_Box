@@ -126,7 +126,7 @@ void volumeDown() {
 // ---------------------------------------------------------------------------
 // EQ (AudioFilterBiquad) helpers
 // ---------------------------------------------------------------------------
-bool eqEnabled = false; // Runtime state, loaded from EEPROM
+bool eqEnabled = true; // Runtime state, loaded from EEPROM (default: ON)
 
 /*
   Two presets: flat (0) and vocal boost (1).
@@ -173,7 +173,8 @@ void saveEQToEEPROM() {
 
 void loadEQFromEEPROM() {
   uint8_t val = EEPROM.read(EEPROM_EQ_ADDRESS);
-  eqEnabled = (val == 1);
+  // 0 = explicitly off; anything else (including 0xFF on blank device) = on
+  eqEnabled = (val != 0);
   applyEQSettings(eqEnabled);
 }
 
