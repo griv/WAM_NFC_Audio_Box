@@ -62,7 +62,7 @@ const int EEPROM_EQ_ADDRESS     = 1; // 1 byte: 0 = EQ off, 1 = EQ on
 // ---------------------------------------------------------------------------
 // Volume control
 // ---------------------------------------------------------------------------
-float currentVolume = 0.5; // Default 50%, loaded from EEPROM
+float currentVolume = 1.0; // Default 100%, loaded from EEPROM
 const float volumeStep = 0.1;
 const float minVolume  = 0.1;
 const float maxVolume  = 1.0;
@@ -76,7 +76,8 @@ void loadVolumeFromEEPROM() {
   if (v <= 100) {
     currentVolume = v / 100.0;
   } else {
-    currentVolume = 0.5;
+    // Blank EEPROM (0xFF) or invalid value – default to full volume
+    currentVolume = 1.0;
     saveVolumeToEEPROM();
   }
 }
