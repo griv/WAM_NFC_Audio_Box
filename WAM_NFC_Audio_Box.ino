@@ -129,84 +129,42 @@ void volumeDown() {
 bool eqEnabled = false; // Runtime state, loaded from EEPROM
 
 /*
-  Apply EQ settings to both biquad filter banks.
-  When enabled, stages 0-2 carry the vocal-boost curve.
-  When disabled, stages 0-2 are set to unity-gain (pass-through).
-*/
-/*
-  Four EQ presets, 0 = flat through to 3 = full vocal boost.
+  Two presets: flat (0) and vocal boost (1).
 
-  Peaking (bell) EQ at 2500 Hz, Q=1.4 — coefficients from Audio EQ Cookbook:
-    w0=2π*2500/44100=0.35700, sin(w0)=0.35093, cos(w0)=0.93632
+  Vocal-boost curve:
+    Stage 0 – Low shelf cut  : 400 Hz, −3 dB, slope 0.707
+    Stage 1 – Peaking bell   : 2500 Hz, +6 dB, Q=1.4
+    Stage 2 – High shelf lift: 5000 Hz, +4 dB, slope 0.707
+
+  Peaking coefficients pre-computed via Audio EQ Cookbook (Bristow-Johnson):
+    w0=2π*2500/44100=0.35700, A=10^(6/40)=1.41254
     alpha=sin(w0)/(2*Q)=0.12533
-    A = 10^(dBgain/40)
-
-  Preset 1 (+2 dB):  A=1.12202
-  Preset 2 (+4 dB):  A=1.25893
-  Preset 3 (+6 dB):  A=1.41254
-
-  All coefficients normalised by a0 so the Teensy DSP sees b0 b1 b2 a1 a2.
+    Normalised (divided by a0): b0 b1 b2 a1 a2
 */
-void applyEQPreset(int preset) {
-  // Identity biquad (flat) used for stage 1 in preset 0
-  static const double peak0[5] = { 1.0, 0.0, 0.0, 0.0, 0.0 };
-
-  // +2 dB @ 2500 Hz, Q=1.4
-  static const double peak1[5] = { 1.02602, -1.68452, 0.77305, -1.68452, 0.79910 };
-
-  // +4 dB @ 2500 Hz, Q=1.4
-  static const double peak2[5] = { 1.05298, -1.70309, 0.76594, -1.70309, 0.81892 };
+void applyEQSettings(bool enabled) {
+  // Identity biquad (pass-through) for stage 1 when flat
+  static const double peakFlat[5]  = { 1.0, 0.0, 0.0, 0.0, 0.0 };
 
   // +6 dB @ 2500 Hz, Q=1.4
-  static const double peak3[5] = { 1.08110, -1.72009, 0.75597, -1.72009, 0.83700 };
+  static const double peakBoost[5] = { 1.08110, -1.72009, 0.75597, -1.72009, 0.83700 };
 
-  switch (preset) {
-    case 0: // ---- Flat (no EQ) ----
-      Serial.println("EQ preset 0: FLAT");
-      eqLeft.setLowShelf( 0, 400,  0.0, 0.707);
-      eqRight.setLowShelf(0, 400,  0.0, 0.707);
-      eqLeft.setCoefficients( 1, peak0);
-      eqRight.setCoefficients(1, peak0);
-      eqLeft.setHighShelf( 2, 5000,  0.0, 0.707);
-      eqRight.setHighShelf(2, 5000,  0.0, 0.707);
-      break;
-
-    case 1: // ---- Light boost ----
-      Serial.println("EQ preset 1: LIGHT  (shelf -2dB, peak +2dB, treble +1.5dB)");
-      eqLeft.setLowShelf( 0, 400, -2.0, 0.707);
-      eqRight.setLowShelf(0, 400, -2.0, 0.707);
-      eqLeft.setCoefficients( 1, peak1);
-      eqRight.setCoefficients(1, peak1);
-      eqLeft.setHighShelf( 2, 5000,  1.5, 0.707);
-      eqRight.setHighShelf(2, 5000,  1.5, 0.707);
-      break;
-
-    case 2: // ---- Medium boost ----
-      Serial.println("EQ preset 2: MEDIUM (shelf -3dB, peak +4dB, treble +3dB)");
-      eqLeft.setLowShelf( 0, 400, -3.0, 0.707);
-      eqRight.setLowShelf(0, 400, -3.0, 0.707);
-      eqLeft.setCoefficients( 1, peak2);
-      eqRight.setCoefficients(1, peak2);
-      eqLeft.setHighShelf( 2, 5000,  3.0, 0.707);
-      eqRight.setHighShelf(2, 5000,  3.0, 0.707);
-      break;
-
-    case 3: // ---- Full boost ----
-    default:
-      Serial.println("EQ preset 3: FULL   (shelf -4dB, peak +6dB, treble +4dB)");
-      eqLeft.setLowShelf( 0, 400, -4.0, 0.707);
-      eqRight.setLowShelf(0, 400, -4.0, 0.707);
-      eqLeft.setCoefficients( 1, peak3);
-      eqRight.setCoefficients(1, peak3);
-      eqLeft.setHighShelf( 2, 5000,  4.0, 0.707);
-      eqRight.setHighShelf(2, 5000,  4.0, 0.707);
-      break;
+  if (enabled) {
+    Serial.println("EQ: VOCAL BOOST (shelf -3dB/400Hz, peak +6dB/2500Hz, treble +4dB/5kHz)");
+    eqLeft.setLowShelf( 0, 400, -3.0, 0.707);
+    eqRight.setLowShelf(0, 400, -3.0, 0.707);
+    eqLeft.setCoefficients( 1, peakBoost);
+    eqRight.setCoefficients(1, peakBoost);
+    eqLeft.setHighShelf( 2, 5000, 4.0, 0.707);
+    eqRight.setHighShelf(2, 5000, 4.0, 0.707);
+  } else {
+    Serial.println("EQ: FLAT (bypass)");
+    eqLeft.setLowShelf( 0, 400, 0.0, 0.707);
+    eqRight.setLowShelf(0, 400, 0.0, 0.707);
+    eqLeft.setCoefficients( 1, peakFlat);
+    eqRight.setCoefficients(1, peakFlat);
+    eqLeft.setHighShelf( 2, 5000, 0.0, 0.707);
+    eqRight.setHighShelf(2, 5000, 0.0, 0.707);
   }
-}
-
-// Wrapper used by EQON/EQOFF and boot-time restore
-void applyEQSettings(bool enabled) {
-  applyEQPreset(enabled ? 3 : 0);
 }
 
 void saveEQToEEPROM() {
@@ -234,30 +192,30 @@ void eqOff() {
 }
 
 // ---------------------------------------------------------------------------
-// Ramp test – plays a WAV file four times, stepping through all EQ presets
+// A/B test – plays a WAV file flat then with vocal-boost EQ
 // ---------------------------------------------------------------------------
 void playABTest(const char* filename) {
-  Serial.print("Ramp test (4 presets): ");
+  Serial.print("A/B test: ");
   Serial.println(filename);
 
-  const char* labels[4] = {
-    "[0] Flat",
-    "[1] Light  (shelf -2dB, peak +2dB, treble +1.5dB)",
-    "[2] Medium (shelf -3dB, peak +4dB, treble +3dB)",
-    "[3] Full   (shelf -4dB, peak +6dB, treble +4dB)"
-  };
+  // --- A: flat ---
+  Serial.println("  [A] Flat");
+  applyEQSettings(false);
+  playSdWav1.play(filename);
+  delay(10);
+  while (playSdWav1.isPlaying()) delay(100);
 
-  for (int preset = 0; preset < 4; preset++) {
-    Serial.println(labels[preset]);
-    applyEQPreset(preset);
-    playSdWav1.play(filename);
-    delay(10);
-    while (playSdWav1.isPlaying()) delay(100);
-    if (preset < 3) delay(700); // gap between steps
-  }
+  delay(700); // pause between A and B
 
-  // Restore the saved EQ state
-  applyEQPreset(eqEnabled ? 3 : 0);
+  // --- B: vocal boost ---
+  Serial.println("  [B] Vocal boost");
+  applyEQSettings(true);
+  playSdWav1.play(filename);
+  delay(10);
+  while (playSdWav1.isPlaying()) delay(100);
+
+  // Restore saved EQ state
+  applyEQSettings(eqEnabled);
 }
 
 // ---------------------------------------------------------------------------
